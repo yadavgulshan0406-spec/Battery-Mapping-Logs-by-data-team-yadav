@@ -1,0 +1,10 @@
+{
+  "name": "battery-logs-app",
+  "version": "1.0.0",
+  "description": "Battery Mapping Logs app deployed on Vercel",
+  "main": "api/batteryLogs.js",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "license": "MIT"
+}

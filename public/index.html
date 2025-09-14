@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Battery Mapping Logs</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+body { font-family: Arial; margin: 20px; }
+textarea { width: 100%; height: 150px; margin-bottom: 10px; }
+select, button { margin: 5px 5px 15px 0; padding: 10px 20px; font-size: 16px; }
+table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+th, td { border: 1px solid #ccc; padding: 8px; }
+th { background: #eee; }
+</style>
+</head>
+<body>
+
+<h2>Battery Mapping Logs</h2>
+
+<textarea id="buids" placeholder="Enter BUIDs, one per line"></textarea>
+<br>
+
+<label>Number of latest records per BUID:</label>
+<select id="recordsCount">
+  <option value="1">1</option>
+  <option value="2" selected>2</option>
+  <option value="3">3</option>
+  <option value="4">4</option>
+  <option value="5">5</option>
+</select>
+
+<br>
+<button onclick="fetchData()">Fetch Data</button>
+<button onclick="downloadCSV()" id="downloadBtn" style="display:none;">Download Result</button>
+
+<table id="resultTable">
+<thead>
+<tr>
+<th>BUID</th>
+<th>Battery ID</th>
+<th>Location ID</th>
+<th>Remark</th>
+<th>Location Movement</th>
+<th>Name</th>
+<th>User Type</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<script>
+let resultData = [];
+
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).replace(/ /g, "-");
+}
+
+async function fetchData() {
+  const buids = document.getElementById("buids").value
+    .split("\n")
+    .map(b => b.trim())
+    .filter(Boolean);
+
+  const count = parseInt(document.getElementById("recordsCount").value);
+
+  const res = await fetch("/api/batteryLogs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ buids, count })
+  });
+
+  const data = await res.json();
+  const tbody = document.querySelector("#resultTable tbody");
+  tbody.innerHTML = "";
+  resultData = [];
+
+  data.forEach(rec => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${rec.buid}</td>
+      <td>${rec.batteriesMasterId}</td>
+      <td>${rec.locationId}</td>
+      <td>${rec.remark || ""}</td>
+      <td>${rec.locationMovement}</td>
+      <td>${rec.name || ""}</td>
+      <td>${rec.userType || ""}</td>
+      <td>${formatDate(rec.createdAtIST)}</td>
+    `;
+    tbody.appendChild(row);
+
+    resultData.push({
+      BUID: rec.buid,
+      BatteryID: rec.batteriesMasterId,
+      LocationID: rec.locationId,
+      Remark: rec.remark || "",
+      Movement: rec.locationMovement,
+      Name: rec.name || "",
+      UserType: rec.userType || "",
+      Date: formatDate(rec.createdAtIST)
+    });
+  });
+
+  document.getElementById("downloadBtn").style.display = resultData.length ? "inline-block" : "none";
+}
+
+function downloadCSV() {
+  if (!resultData.length) return;
+  const csv = Papa.unparse(resultData);
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "BatteryLogs.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+</script>
+
+</body>
+</html>
